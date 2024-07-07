@@ -33,15 +33,31 @@ const Game = () => {
     const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2) // 앵무새의 X 위치
 
     // 플랫폼 초기화
-    useEffect(() => {
-        const initialPlatforms = Array(5)
+    const initializePlatforms = () => {
+        let initialPlatforms = Array(5)
             .fill()
             .map((_, i) => ({
                 x: (GAME_WIDTH - PLATFORM_WIDTH) / 2,
                 y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP, // 플랫폼을 아래에서 위로 배치
                 direction: Math.random() > 0.5 ? 1 : -1 // 초기 방향 랜덤 설정
             }))
-        setGameState(prev => ({ ...prev, platforms: initialPlatforms }))
+
+        // 서로 붙어있는 플랫폼의 x 좌표가 겹치지 않도록 조정
+        initialPlatforms = initialPlatforms.map((platform, index) => {
+            if (index > 0) {
+                let prevPlatform = initialPlatforms[index - 1]
+                while (Math.abs(platform.x - prevPlatform.x) < PLATFORM_WIDTH) {
+                    platform.x = Math.random() * (GAME_WIDTH - PLATFORM_WIDTH)
+                }
+            }
+            return platform
+        })
+
+        return initialPlatforms
+    }
+
+    useEffect(() => {
+        setGameState(prev => ({ ...prev, platforms: initializePlatforms() }))
     }, [])
 
     // 게임 루프
@@ -158,6 +174,20 @@ const Game = () => {
         })
     }, [gameState.gameOver])
 
+    // 게임 재시작 함수
+    const restartGame = () => {
+        setGameState({
+            parrotVelocity: 0,
+            platformOffset: 0,
+            platforms: initializePlatforms(),
+            canJump: true,
+            gameOver: false,
+            score: 0
+        })
+        setRotation(0)
+        setParrotX(GAME_WIDTH / 2 - PARROT_SIZE / 2)
+    }
+
     // 플랫폼 애니메이션
     const platformAnimation = useSpring({
         from: { transform: 'translateY(0px)' },
@@ -224,7 +254,13 @@ const Game = () => {
                         borderRadius: '10px'
                     }}
                 >
-                    Game Over
+                    <p>Game Over</p>
+                    <button
+                        onClick={restartGame}
+                        style={{ padding: '10px', fontSize: '16px' }}
+                    >
+                        Restart
+                    </button>
                 </div>
             )}
         </div>
