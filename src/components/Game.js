@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useSpring, animated } from 'react-spring'
 import parrotImage from './parrot.png' // 이미지 파일 경로 설정
 
@@ -28,6 +28,8 @@ const Game = () => {
     const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2)
     const [lastPlatformY, setLastPlatformY] = useState(null)
     const [backgroundIndex, setBackgroundIndex] = useState(0)
+    const bgMusic = useRef(null) // useRef로 오디오 객체를 관리
+    const [isGameStarted, setIsGameStarted] = useState(false)
 
     const initializePlatforms = () => {
         let initialPlatforms = Array(5)
@@ -51,10 +53,25 @@ const Game = () => {
 
     useEffect(() => {
         setGameState(prev => ({ ...prev, platforms: initializePlatforms() }))
+
+        // 오디오 객체를 생성하고 루프 설정
+        if (!bgMusic.current) {
+            bgMusic.current = new Audio('bg_music.mp3')
+            bgMusic.current.loop = true
+            bgMusic.current.load()
+        }
+
+        return () => {
+            // 컴포넌트 언마운트 시 오디오 객체 정리
+            if (bgMusic.current) {
+                bgMusic.current.pause()
+                bgMusic.current = null
+            }
+        }
     }, [])
 
     useEffect(() => {
-        if (gameState.gameOver) return
+        if (!isGameStarted || gameState.gameOver) return
 
         const gameLoop = setInterval(() => {
             setGameState(prev => {
@@ -153,7 +170,7 @@ const Game = () => {
         }, 1000 / 60)
 
         return () => clearInterval(gameLoop)
-    }, [gameState.gameOver, parrotX, lastPlatformY])
+    }, [isGameStarted, gameState.gameOver, parrotX, lastPlatformY])
 
     useEffect(() => {
         const platformMovement = setInterval(() => {
@@ -177,8 +194,24 @@ const Game = () => {
         return () => clearInterval(platformMovement)
     }, [])
 
+    const playBackgroundMusic = async () => {
+        try {
+            if (bgMusic.current) {
+                await bgMusic.current.play()
+            }
+        } catch (error) {
+            console.error('Failed to play background music:', error)
+        }
+    }
+
+    const startGame = () => {
+        setIsGameStarted(true)
+        playBackgroundMusic()
+    }
+
     const jump = useCallback(() => {
-        if (gameState.gameOver) return
+        if (gameState.gameOver || !isGameStarted) return
+
         setGameState(prev => {
             if (prev.canJump) {
                 setRotation(rotation => rotation + 360)
@@ -186,7 +219,7 @@ const Game = () => {
             }
             return prev
         })
-    }, [gameState.gameOver])
+    }, [gameState.gameOver, isGameStarted])
 
     const restartGame = () => {
         setGameState({
@@ -202,6 +235,7 @@ const Game = () => {
         setParrotX(GAME_WIDTH / 2 - PARROT_SIZE / 2)
         setLastPlatformY(null)
         setBackgroundIndex(0)
+        playBackgroundMusic() // 게임 재시작 시 음악 재생
     }
 
     const platformAnimation = useSpring({
@@ -228,46 +262,7 @@ const Game = () => {
             }}
             onClick={jump}
         >
-            <animated.div style={platformAnimation}>
-                {gameState.platforms.map((platform, index) => (
-                    <div
-                        key={index}
-                        style={{
-                            position: 'absolute',
-                            left: platform.x,
-                            top: platform.y,
-                            width: PLATFORM_WIDTH,
-                            height: PLATFORM_HEIGHT,
-                            backgroundColor: 'green'
-                        }}
-                    />
-                ))}
-            </animated.div>
-            <animated.img
-                src={parrotImage}
-                alt="Parrot"
-                style={{
-                    width: PARROT_SIZE,
-                    height: PARROT_SIZE,
-                    position: 'absolute',
-                    left: parrotX,
-                    top: PARROT_POSITION_Y,
-                    objectFit: 'cover',
-                    ...parrotAnimation
-                }}
-            />
-            <div
-                style={{
-                    position: 'absolute',
-                    top: '10px',
-                    left: '10px',
-                    fontSize: '20px',
-                    color: 'white'
-                }}
-            >
-                Score: {gameState.score}
-            </div>
-            {gameState.gameOver && (
+            {!isGameStarted && (
                 <div
                     style={{
                         position: 'absolute',
@@ -281,15 +276,81 @@ const Game = () => {
                         textAlign: 'center'
                     }}
                 >
-                    <p>Game Over</p>
-                    <p>High Score: {gameState.highScore}</p>
+                    <p>Welcome to Parrot Jump Game</p>
                     <button
-                        onClick={restartGame}
+                        onClick={startGame}
                         style={{ padding: '10px', fontSize: '16px' }}
                     >
-                        Restart
+                        Start Game
                     </button>
                 </div>
+            )}
+            {isGameStarted && (
+                <>
+                    <animated.div style={platformAnimation}>
+                        {gameState.platforms.map((platform, index) => (
+                            <div
+                                key={index}
+                                style={{
+                                    position: 'absolute',
+                                    left: platform.x,
+                                    top: platform.y,
+                                    width: PLATFORM_WIDTH,
+                                    height: PLATFORM_HEIGHT,
+                                    backgroundColor: 'green'
+                                }}
+                            />
+                        ))}
+                    </animated.div>
+                    <animated.img
+                        src={parrotImage}
+                        alt="Parrot"
+                        style={{
+                            width: PARROT_SIZE,
+                            height: PARROT_SIZE,
+                            position: 'absolute',
+                            left: parrotX,
+                            top: PARROT_POSITION_Y,
+                            objectFit: 'cover',
+                            ...parrotAnimation
+                        }}
+                    />
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '10px',
+                            fontSize: '20px',
+                            color: 'white'
+                        }}
+                    >
+                        Score: {gameState.score}
+                    </div>
+                    {gameState.gameOver && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                backgroundColor: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '20px',
+                                borderRadius: '10px',
+                                textAlign: 'center'
+                            }}
+                        >
+                            <p>Game Over</p>
+                            <p>High Score: {gameState.highScore}</p>
+                            <button
+                                onClick={restartGame}
+                                style={{ padding: '10px', fontSize: '16px' }}
+                            >
+                                Restart
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     )
