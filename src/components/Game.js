@@ -26,11 +26,13 @@ const Game = () => {
         platforms: [],
         canJump: true,
         gameOver: false,
-        score: 0
+        score: 0,
+        highScore: 0
     })
 
     const [rotation, setRotation] = useState(0)
     const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2) // 앵무새의 X 위치
+    const [lastPlatformY, setLastPlatformY] = useState(null) // 마지막으로 착지한 플랫폼의 Y 좌표
 
     // 플랫폼 초기화
     const initializePlatforms = () => {
@@ -91,19 +93,43 @@ const Game = () => {
                         setParrotX(
                             platform.x + PLATFORM_WIDTH / 2 - PARROT_SIZE / 2
                         ) // 앵무새의 x 위치를 플랫폼의 x 위치로 설정
-                        return true
+                        return platform
                     }
-                    return false
+                    return null
                 })
 
                 if (onPlatform) {
                     newOffset = prev.platformOffset
                     canJump = true
+
+                    // 점수 증가
+                    if (onPlatform.y !== lastPlatformY) {
+                        setLastPlatformY(onPlatform.y)
+                        const newScore = prev.score + 1
+                        return {
+                            ...prev,
+                            parrotVelocity: 0,
+                            platformOffset: newOffset,
+                            canJump,
+                            score: newScore
+                        }
+                    } else {
+                        return {
+                            ...prev,
+                            parrotVelocity: 0,
+                            platformOffset: newOffset,
+                            canJump
+                        }
+                    }
                 }
 
                 // 게임 오버 조건
                 if (newOffset < -GAME_HEIGHT) {
-                    return { ...prev, gameOver: true }
+                    return {
+                        ...prev,
+                        gameOver: true,
+                        highScore: Math.max(prev.score, prev.highScore)
+                    }
                 }
 
                 // 새로운 플랫폼 생성 로직
@@ -128,7 +154,7 @@ const Game = () => {
 
                 return {
                     ...prev,
-                    parrotVelocity: onPlatform ? 0 : newVelocity,
+                    parrotVelocity: newVelocity,
                     platformOffset: newOffset,
                     platforms: filteredPlatforms,
                     canJump
@@ -137,7 +163,7 @@ const Game = () => {
         }, 1000 / 60)
 
         return () => clearInterval(gameLoop)
-    }, [gameState.gameOver, parrotX])
+    }, [gameState.gameOver, parrotX, lastPlatformY])
 
     // 플랫폼 움직임 업데이트
     useEffect(() => {
@@ -182,10 +208,12 @@ const Game = () => {
             platforms: initializePlatforms(),
             canJump: true,
             gameOver: false,
-            score: 0
+            score: 0,
+            highScore: gameState.highScore
         })
         setRotation(0)
         setParrotX(GAME_WIDTH / 2 - PARROT_SIZE / 2)
+        setLastPlatformY(null)
     }
 
     // 플랫폼 애니메이션
@@ -241,6 +269,17 @@ const Game = () => {
                     ...parrotAnimation
                 }}
             />
+            <div
+                style={{
+                    position: 'absolute',
+                    top: '10px',
+                    left: '10px',
+                    fontSize: '20px',
+                    color: 'white'
+                }}
+            >
+                Score: {gameState.score}
+            </div>
             {gameState.gameOver && (
                 <div
                     style={{
@@ -251,10 +290,12 @@ const Game = () => {
                         backgroundColor: 'rgba(0,0,0,0.7)',
                         color: 'white',
                         padding: '20px',
-                        borderRadius: '10px'
+                        borderRadius: '10px',
+                        textAlign: 'center'
                     }}
                 >
                     <p>Game Over</p>
+                    <p>High Score: {gameState.highScore}</p>
                     <button
                         onClick={restartGame}
                         style={{ padding: '10px', fontSize: '16px' }}
