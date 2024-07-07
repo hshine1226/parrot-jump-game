@@ -9,15 +9,10 @@ const JUMP_FORCE = -15
 const PLATFORM_HEIGHT = 15
 const PLATFORM_WIDTH = 60
 const PARROT_SIZE = 30
-
-// 플랫폼 간격
 const PLATFORM_GAP = GAME_HEIGHT / 6
-
-// 앵무새의 고정된 Y 위치 (더 많이 올림)
 const PARROT_POSITION_Y = GAME_HEIGHT - 2 * PLATFORM_GAP - PARROT_SIZE
-
-// 플랫폼 이동 속도
 const PLATFORM_SPEED = 2
+const BACKGROUNDS = ['bg1.png', 'bg2.png', 'bg3.png', 'bg4.png']
 
 const Game = () => {
     const [gameState, setGameState] = useState({
@@ -29,22 +24,19 @@ const Game = () => {
         score: 0,
         highScore: 0
     })
-
     const [rotation, setRotation] = useState(0)
-    const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2) // 앵무새의 X 위치
-    const [lastPlatformY, setLastPlatformY] = useState(null) // 마지막으로 착지한 플랫폼의 Y 좌표
+    const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2)
+    const [lastPlatformY, setLastPlatformY] = useState(null)
+    const [backgroundIndex, setBackgroundIndex] = useState(0)
 
-    // 플랫폼 초기화
     const initializePlatforms = () => {
         let initialPlatforms = Array(5)
             .fill()
             .map((_, i) => ({
                 x: (GAME_WIDTH - PLATFORM_WIDTH) / 2,
-                y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP, // 플랫폼을 아래에서 위로 배치
-                direction: Math.random() > 0.5 ? 1 : -1 // 초기 방향 랜덤 설정
+                y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP,
+                direction: Math.random() > 0.5 ? 1 : -1
             }))
-
-        // 서로 붙어있는 플랫폼의 x 좌표가 겹치지 않도록 조정
         initialPlatforms = initialPlatforms.map((platform, index) => {
             if (index > 0) {
                 let prevPlatform = initialPlatforms[index - 1]
@@ -54,7 +46,6 @@ const Game = () => {
             }
             return platform
         })
-
         return initialPlatforms
     }
 
@@ -62,7 +53,6 @@ const Game = () => {
         setGameState(prev => ({ ...prev, platforms: initializePlatforms() }))
     }, [])
 
-    // 게임 루프
     useEffect(() => {
         if (gameState.gameOver) return
 
@@ -72,7 +62,6 @@ const Game = () => {
                 let newOffset = prev.platformOffset - newVelocity
                 let canJump = false
 
-                // 충돌 감지
                 const onPlatform = prev.platforms.find(platform => {
                     const parrotBottom = PARROT_POSITION_Y + PARROT_SIZE
                     const platformTop = platform.y + newOffset
@@ -88,11 +77,10 @@ const Game = () => {
                         parrotLeft < platformRight &&
                         parrotRight > platformLeft
 
-                    // 앵무새가 내려오거나 정지 상태인지 확인 (속도가 0이거나 양수인 경우)
                     if (isOnPlatform && prev.parrotVelocity >= 0) {
                         setParrotX(
                             platform.x + PLATFORM_WIDTH / 2 - PARROT_SIZE / 2
-                        ) // 앵무새의 x 위치를 플랫폼의 x 위치로 설정
+                        )
                         return platform
                     }
                     return null
@@ -102,10 +90,17 @@ const Game = () => {
                     newOffset = prev.platformOffset
                     canJump = true
 
-                    // 점수 증가
                     if (onPlatform.y !== lastPlatformY) {
                         setLastPlatformY(onPlatform.y)
                         const newScore = prev.score + 1
+
+                        if (newScore % 10 === 0) {
+                            setBackgroundIndex(
+                                prevIndex =>
+                                    (prevIndex + 1) % BACKGROUNDS.length
+                            )
+                        }
+
                         return {
                             ...prev,
                             parrotVelocity: 0,
@@ -123,7 +118,6 @@ const Game = () => {
                     }
                 }
 
-                // 게임 오버 조건
                 if (newOffset < -GAME_HEIGHT) {
                     return {
                         ...prev,
@@ -132,23 +126,19 @@ const Game = () => {
                     }
                 }
 
-                // 새로운 플랫폼 생성 로직
                 let updatedPlatforms = [...prev.platforms]
-
-                // 화면 아래로 사라진 플랫폼 제거
                 const filteredPlatforms = updatedPlatforms.filter(
                     platform => platform.y + newOffset < GAME_HEIGHT
                 )
 
-                // 만약 플랫폼이 사라졌다면, 새로운 플랫폼을 맨 위에 추가
                 if (filteredPlatforms.length < updatedPlatforms.length) {
                     const highestPlatformY = Math.min(
                         ...updatedPlatforms.map(p => p.y)
                     )
                     filteredPlatforms.push({
-                        x: (GAME_WIDTH - PLATFORM_WIDTH) / 2, // 가운데로 배치
+                        x: (GAME_WIDTH - PLATFORM_WIDTH) / 2,
                         y: highestPlatformY - PLATFORM_GAP,
-                        direction: Math.random() > 0.5 ? 1 : -1 // 초기 방향 랜덤 설정
+                        direction: Math.random() > 0.5 ? 1 : -1
                     })
                 }
 
@@ -165,7 +155,6 @@ const Game = () => {
         return () => clearInterval(gameLoop)
     }, [gameState.gameOver, parrotX, lastPlatformY])
 
-    // 플랫폼 움직임 업데이트
     useEffect(() => {
         const platformMovement = setInterval(() => {
             setGameState(prev => {
@@ -188,19 +177,17 @@ const Game = () => {
         return () => clearInterval(platformMovement)
     }, [])
 
-    // 점프 함수
     const jump = useCallback(() => {
         if (gameState.gameOver) return
         setGameState(prev => {
             if (prev.canJump) {
-                setRotation(rotation => rotation + 360) // 360도 회전 추가
+                setRotation(rotation => rotation + 360)
                 return { ...prev, parrotVelocity: JUMP_FORCE }
             }
             return prev
         })
     }, [gameState.gameOver])
 
-    // 게임 재시작 함수
     const restartGame = () => {
         setGameState({
             parrotVelocity: 0,
@@ -214,16 +201,15 @@ const Game = () => {
         setRotation(0)
         setParrotX(GAME_WIDTH / 2 - PARROT_SIZE / 2)
         setLastPlatformY(null)
+        setBackgroundIndex(0)
     }
 
-    // 플랫폼 애니메이션
     const platformAnimation = useSpring({
         from: { transform: 'translateY(0px)' },
         to: { transform: `translateY(${gameState.platformOffset}px)` },
         config: { duration: 50 }
     })
 
-    // 앵무새 회전 애니메이션
     const parrotAnimation = useSpring({
         transform: `rotate(${rotation}deg)`,
         config: { duration: 200 }
@@ -237,7 +223,8 @@ const Game = () => {
                 position: 'relative',
                 overflow: 'hidden',
                 border: '2px solid black',
-                backgroundColor: 'skyblue'
+                backgroundImage: `url(${BACKGROUNDS[backgroundIndex]})`,
+                backgroundSize: 'cover'
             }}
             onClick={jump}
         >
@@ -264,7 +251,7 @@ const Game = () => {
                     height: PARROT_SIZE,
                     position: 'absolute',
                     left: parrotX,
-                    top: PARROT_POSITION_Y, // 앵무새의 고정된 위치
+                    top: PARROT_POSITION_Y,
                     objectFit: 'cover',
                     ...parrotAnimation
                 }}
