@@ -16,6 +16,9 @@ const PLATFORM_GAP = GAME_HEIGHT / 6
 // 앵무새의 고정된 Y 위치 (더 많이 올림)
 const PARROT_POSITION_Y = GAME_HEIGHT - 2 * PLATFORM_GAP - PARROT_SIZE
 
+// 플랫폼 이동 속도
+const PLATFORM_SPEED = 2
+
 const Game = () => {
     const [gameState, setGameState] = useState({
         parrotVelocity: 0,
@@ -27,6 +30,7 @@ const Game = () => {
     })
 
     const [rotation, setRotation] = useState(0)
+    const [parrotX, setParrotX] = useState(GAME_WIDTH / 2 - PARROT_SIZE / 2) // 앵무새의 X 위치
 
     // 플랫폼 초기화
     useEffect(() => {
@@ -34,7 +38,8 @@ const Game = () => {
             .fill()
             .map((_, i) => ({
                 x: (GAME_WIDTH - PLATFORM_WIDTH) / 2,
-                y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP // 플랫폼을 아래에서 위로 배치
+                y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP, // 플랫폼을 아래에서 위로 배치
+                direction: Math.random() > 0.5 ? 1 : -1 // 초기 방향 랜덤 설정
             }))
         setGameState(prev => ({ ...prev, platforms: initialPlatforms }))
     }, [])
@@ -54,8 +59,8 @@ const Game = () => {
                     const parrotBottom = PARROT_POSITION_Y + PARROT_SIZE
                     const platformTop = platform.y + newOffset
                     const platformBottom = platformTop + PLATFORM_HEIGHT
-                    const parrotLeft = GAME_WIDTH / 2 - PARROT_SIZE / 2
-                    const parrotRight = GAME_WIDTH / 2 + PARROT_SIZE / 2
+                    const parrotLeft = parrotX
+                    const parrotRight = parrotX + PARROT_SIZE
                     const platformLeft = platform.x
                     const platformRight = platform.x + PLATFORM_WIDTH
 
@@ -66,7 +71,13 @@ const Game = () => {
                         parrotRight > platformLeft
 
                     // 앵무새가 내려오거나 정지 상태인지 확인 (속도가 0이거나 양수인 경우)
-                    return isOnPlatform && prev.parrotVelocity >= 0
+                    if (isOnPlatform && prev.parrotVelocity >= 0) {
+                        setParrotX(
+                            platform.x + PLATFORM_WIDTH / 2 - PARROT_SIZE / 2
+                        ) // 앵무새의 x 위치를 플랫폼의 x 위치로 설정
+                        return true
+                    }
+                    return false
                 })
 
                 if (onPlatform) {
@@ -94,7 +105,8 @@ const Game = () => {
                     )
                     filteredPlatforms.push({
                         x: (GAME_WIDTH - PLATFORM_WIDTH) / 2, // 가운데로 배치
-                        y: highestPlatformY - PLATFORM_GAP
+                        y: highestPlatformY - PLATFORM_GAP,
+                        direction: Math.random() > 0.5 ? 1 : -1 // 초기 방향 랜덤 설정
                     })
                 }
 
@@ -109,7 +121,30 @@ const Game = () => {
         }, 1000 / 60)
 
         return () => clearInterval(gameLoop)
-    }, [gameState.gameOver])
+    }, [gameState.gameOver, parrotX])
+
+    // 플랫폼 움직임 업데이트
+    useEffect(() => {
+        const platformMovement = setInterval(() => {
+            setGameState(prev => {
+                const updatedPlatforms = prev.platforms.map(platform => {
+                    let newX = platform.x + platform.direction * PLATFORM_SPEED
+                    let newDirection = platform.direction
+
+                    if (newX <= 0 || newX + PLATFORM_WIDTH >= GAME_WIDTH) {
+                        newDirection = -platform.direction
+                        newX = platform.x + newDirection * PLATFORM_SPEED
+                    }
+
+                    return { ...platform, x: newX, direction: newDirection }
+                })
+
+                return { ...prev, platforms: updatedPlatforms }
+            })
+        }, 1000 / 60)
+
+        return () => clearInterval(platformMovement)
+    }, [])
 
     // 점프 함수
     const jump = useCallback(() => {
@@ -170,7 +205,7 @@ const Game = () => {
                     width: PARROT_SIZE,
                     height: PARROT_SIZE,
                     position: 'absolute',
-                    left: GAME_WIDTH / 2 - PARROT_SIZE / 2,
+                    left: parrotX,
                     top: PARROT_POSITION_Y, // 앵무새의 고정된 위치
                     objectFit: 'cover',
                     ...parrotAnimation
