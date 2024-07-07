@@ -21,7 +21,7 @@ const Game = () => {
         score: 0
     })
 
-    const [rotate, setRotate] = useState(false)
+    const [rotation, setRotation] = useState(0)
 
     // 플랫폼 초기화
     useEffect(() => {
@@ -75,26 +75,23 @@ const Game = () => {
                 }
 
                 // 새로운 플랫폼 생성 로직
-                const highestPlatformY = Math.min(
-                    ...prev.platforms.map(p => p.y)
-                )
-                const updatedPlatforms = onPlatform
-                    ? prev.platforms.filter(
-                          platform => platform.y <= onPlatform.y
-                      )
-                    : prev.platforms
-
-                if (highestPlatformY > PARROT_POSITION_Y - GAME_HEIGHT) {
-                    updatedPlatforms.push({
-                        x: (GAME_WIDTH - PLATFORM_WIDTH) / 2, // 가운데로 배치
-                        y: highestPlatformY - GAME_HEIGHT / 5
-                    })
-                }
+                let updatedPlatforms = [...prev.platforms]
 
                 // 화면 아래로 사라진 플랫폼 제거
                 const filteredPlatforms = updatedPlatforms.filter(
                     platform => platform.y + newOffset < GAME_HEIGHT
                 )
+
+                // 만약 플랫폼이 사라졌다면, 새로운 플랫폼을 맨 위에 추가
+                if (filteredPlatforms.length < updatedPlatforms.length) {
+                    const highestPlatformY = Math.min(
+                        ...updatedPlatforms.map(p => p.y)
+                    )
+                    filteredPlatforms.push({
+                        x: (GAME_WIDTH - PLATFORM_WIDTH) / 2, // 가운데로 배치
+                        y: highestPlatformY - GAME_HEIGHT / 5
+                    })
+                }
 
                 return {
                     ...prev,
@@ -114,8 +111,7 @@ const Game = () => {
         if (gameState.gameOver) return
         setGameState(prev => {
             if (prev.canJump) {
-                setRotate(true) // 회전 시작
-                setTimeout(() => setRotate(false), 200) // 회전 애니메이션을 끝내기 위해 타임아웃 설정
+                setRotation(rotation => rotation + 360) // 360도 회전 추가
                 return { ...prev, parrotVelocity: JUMP_FORCE }
             }
             return prev
@@ -131,7 +127,7 @@ const Game = () => {
 
     // 앵무새 회전 애니메이션
     const parrotAnimation = useSpring({
-        transform: rotate ? 'rotate(360deg)' : 'rotate(0deg)',
+        transform: `rotate(${rotation}deg)`,
         config: { duration: 200 }
     })
 
