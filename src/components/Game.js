@@ -9,7 +9,12 @@ const JUMP_FORCE = -15
 const PLATFORM_HEIGHT = 15
 const PLATFORM_WIDTH = 60
 const PARROT_SIZE = 30
-const PARROT_POSITION_Y = GAME_HEIGHT * 0.7 // 앵무새의 고정된 Y 위치
+
+// 플랫폼 간격
+const PLATFORM_GAP = GAME_HEIGHT / 6
+
+// 앵무새의 고정된 Y 위치 (더 많이 올림)
+const PARROT_POSITION_Y = GAME_HEIGHT - 2 * PLATFORM_GAP - PARROT_SIZE
 
 const Game = () => {
     const [gameState, setGameState] = useState({
@@ -29,7 +34,7 @@ const Game = () => {
             .fill()
             .map((_, i) => ({
                 x: (GAME_WIDTH - PLATFORM_WIDTH) / 2,
-                y: PARROT_POSITION_Y + i * (GAME_HEIGHT / 10) // 플랫폼을 아래에서 위로 배치
+                y: GAME_HEIGHT - (i + 1) * PLATFORM_GAP // 플랫폼을 아래에서 위로 배치
             }))
         setGameState(prev => ({ ...prev, platforms: initialPlatforms }))
     }, [])
@@ -89,7 +94,7 @@ const Game = () => {
                     )
                     filteredPlatforms.push({
                         x: (GAME_WIDTH - PLATFORM_WIDTH) / 2, // 가운데로 배치
-                        y: highestPlatformY - GAME_HEIGHT / 5
+                        y: highestPlatformY - PLATFORM_GAP
                     })
                 }
 
